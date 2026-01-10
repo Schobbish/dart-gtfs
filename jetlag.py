@@ -251,7 +251,7 @@ def get_future_stops_on_trip(trip: TripId, stop_seq: StopSeq = 0):
     st = stop_times_by_trip.get_group((str(trip),))
     return st[st["stop_sequence"] > int(stop_seq)]
 
-@functools.lru_cache()
+@functools.cache
 def get_stop_timetable(stop: StopId, day: str):
     tt = gtfs.build_stop_timetable(str(stop), [day])
     tt["arrival_time"] = pd.to_timedelta(tt["arrival_time"])

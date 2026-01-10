@@ -116,7 +116,7 @@ class GTFS:
                 str(self.trip_to_route[row["trip_id"]])
             )
         return dct
-    
+
     @functools.cached_property
     def route_stops(self) -> dict[str, set[str]]:
         dct = defaultdict(set)
@@ -235,6 +235,17 @@ class GTFS:
             .filter(["stop_id"])
         )
 
+    @functools.cache
+    def subset_dates(self, dates: tuple[str]) -> list[str]:
+        return self.feed.subset_dates(dates)
+
+    @functools.cache
+    def _get_group_from_merged_trips_and_stoptimes(self, stop_id: str) -> pd.DataFrame:
+        if self._merged_trips_and_stoptimes is None:
+            merged = pd.merge(self.feed.trips, self.feed.stop_times)
+            self._merged_trips_and_stoptimes = merged.groupby(["stop_id"], sort=False)
+        return self._merged_trips_and_stoptimes.get_group((stop_id,))
+
     def build_stop_timetable(self, stop_id: str, dates: list[str]) -> pd.DataFrame:
         """
         Return a DataFrame containing the timetable for the given stop ID
@@ -248,16 +259,11 @@ class GTFS:
         Adapted from the gtfs_kit.Feed.build_stop_timetable method to use caching of key
         variables and optimize fetching of stops by ID.
         """
-        dates = self.feed.subset_dates(dates)
+        dates = self.subset_dates(tuple(dates))
         if not dates:
             return pd.DataFrame()
 
-        if self._merged_trips_and_stoptimes is None:
-            merged = pd.merge(
-                self.feed.trips, self.feed.stop_times
-            )
-            self._merged_trips_and_stoptimes = merged.groupby(["stop_id"], sort=False)
-        t = self._merged_trips_and_stoptimes.get_group((stop_id,))
+        t = self._get_group_from_merged_trips_and_stoptimes(stop_id)
 
         tuple_dates = tuple(dates)
         if tuple_dates not in self._trip_activities_by_dates:
