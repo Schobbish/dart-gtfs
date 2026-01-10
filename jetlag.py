@@ -270,7 +270,7 @@ def get_starting_stops():
     return sorted(
         filter(
             lambda stop_info: any(
-                (gtfs.routes.at[r_id, "route_type"] in ALLOWED_HIDING_MODES) or (r_id in ALLOWED_ROUTE_IDS)
+                (gtfs.route_to_type[r_id] in ALLOWED_HIDING_MODES) or (r_id in ALLOWED_ROUTE_IDS)
                 for r_id in gtfs.stop_routes[stop_info[0]]
             ),
             gtfs.stop_names.items(),
