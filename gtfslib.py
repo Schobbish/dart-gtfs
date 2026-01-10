@@ -132,6 +132,7 @@ class GTFS:
             dct[row["stop_id"]] = row["stop_name"]
         return dct
 
+    @functools.cache
     def get_stop(self, stop_id: str | int) -> gpd.GeoDataFrame:
         df = self._stops_by_id.loc[[str(stop_id)]].copy()
         df.index.set_names('', inplace=True)
