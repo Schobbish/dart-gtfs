@@ -23,15 +23,17 @@ from flask import Flask, render_template, request
 app = Flask(__name__)
 
 
-DEFAULT_START_TIME = datetime(2025, 1, 20, 9, 0, 0)
-DEFAULT_HIDE_DURATION = timedelta(minutes=90)
+DEFAULT_START_TIME = datetime(2026, 1, 10, 9, 45, 0)
+DEFAULT_HIDE_DURATION = timedelta(minutes=45)
 DEFAULT_START_STOP = 22750  # Akard
 DEFAULT_WALKING_SPEED = 1.06  # m/s
 DEFAULT_ALLOWED_TRAVEL_MODES = RouteType.all()
 DEFAULT_ALLOWED_HIDING_MODES = [RouteType.LIGHT_RAIL]
+DEFAULT_ALLOWED_HIDING_ROUTES = ["26793"] # dallas streetcar
 
 _default_allowed_travel_modes = ','.join(mode.name for mode in DEFAULT_ALLOWED_TRAVEL_MODES)
 _default_allowed_hiding_modes = ','.join(mode.name for mode in DEFAULT_ALLOWED_HIDING_MODES)
+_default_allowed_hiding_routes = ','.join(DEFAULT_ALLOWED_HIDING_ROUTES)
 
 data_folder = Path("data")
 if not data_folder.exists():
@@ -264,22 +266,11 @@ def trips_between_for_stop(stop: StopId, day: str, t1: Timeish, t2: Timeish):
 def get_starting_stops():
     # ALLOWED_HIDING_MODES = [ RouteType[route_type] for route_type in data.get('hiding_modes', _default_allowed_hiding_modes).split(',') ]
     ALLOWED_HIDING_MODES = [ RouteType[route_type] for route_type in (_default_allowed_hiding_modes).split(',') ]
-    ALLOWED_ROUTE_IDS = ["26810"] # overrides hiding modes
-    if len(ALLOWED_ROUTE_IDS):
-        return sorted(
-            filter(
-                lambda stop_info: any(
-                    r_id in ALLOWED_ROUTE_IDS
-                    for r_id in gtfs.stop_routes[stop_info[0]]
-                ),
-                gtfs.stop_names.items(),
-            ),
-            key=itemgetter(1),
-        )
+    ALLOWED_ROUTE_IDS = _default_allowed_hiding_routes.split(',') # adds to hiding modes
     return sorted(
         filter(
             lambda stop_info: any(
-                gtfs.routes.at[r_id, "route_type"] in ALLOWED_HIDING_MODES
+                (gtfs.routes.at[r_id, "route_type"] in ALLOWED_HIDING_MODES) or (r_id in ALLOWED_ROUTE_IDS)
                 for r_id in gtfs.stop_routes[stop_info[0]]
             ),
             gtfs.stop_names.items(),
@@ -311,6 +302,7 @@ def jetlag_map():
     WALKING_SPEED = float(data.get('walking_speed', DEFAULT_WALKING_SPEED))
     ALLOWED_TRAVEL_MODES = [ RouteType[route_type] for route_type in data.get('travel_modes', _default_allowed_travel_modes).split(',') ]
     ALLOWED_HIDING_MODES = [ RouteType[route_type] for route_type in data.get('hiding_modes', _default_allowed_hiding_modes).split(',') ]
+    ALLOWED_HIDING_ROUTES = data.get('hiding_routes', _default_allowed_hiding_routes).split(',')
 
     if not (gtfs.start_date <= START_TIME.date() <= gtfs.end_date):
         return "<strong>Start time not in GTFS feed range!</strong>"
@@ -413,11 +405,10 @@ def jetlag_map():
         stop = gtfs.get_stop(stop_id).to_crs(Projections.WGS84).iloc[0]
         name, point = stop["stop_name"], stop.geometry
         lon, lat = point.x, point.y
-        # is_valid_hiding_spot = any(
-        #     gtfs.route_to_type[r_id] in ALLOWED_HIDING_MODES
-        #     for r_id in gtfs.stop_routes[stop_id]
-        # )
-        is_valid_hiding_spot = any(r_id == "26810" for r_id in gtfs.stop_routes[stop_id])  # overrides hiding modes for Silver Line
+        is_valid_hiding_spot = any(
+            (gtfs.route_to_type[r_id] in ALLOWED_HIDING_MODES) or (r_id in ALLOWED_HIDING_ROUTES)
+            for r_id in gtfs.stop_routes[stop_id]
+        ) # TODO: create function
 
         popup = folium.Popup(
             route_collection.populate_waiting().to_str(sep='<br>'),
