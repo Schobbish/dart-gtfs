@@ -26,6 +26,7 @@ app = Flask(__name__)
 DEFAULT_START_TIME = datetime(2026, 1, 10, 9, 45, 0)
 DEFAULT_HIDE_DURATION = timedelta(minutes=45)
 DEFAULT_START_STOP = 22750  # Akard
+DEFAULT_HIDING_RADIUS = 0.25 # miles
 DEFAULT_WALKING_SPEED = 1.06  # m/s
 DEFAULT_ALLOWED_TRAVEL_MODES = RouteType.all()
 DEFAULT_ALLOWED_HIDING_MODES = [RouteType.LIGHT_RAIL]
@@ -299,6 +300,7 @@ def jetlag_map():
     _end_time = data.get('end_time', None)
     END_TIME = datetime.fromisoformat(_end_time) if _end_time else START_TIME + timedelta(minutes=_hide_duration)
     START_STOP = data.get('start_stop_id', DEFAULT_START_STOP)
+    HIDING_RADIUS = float(data.get('hiding_radius', DEFAULT_HIDING_RADIUS))
     WALKING_SPEED = float(data.get('walking_speed', DEFAULT_WALKING_SPEED))
     ALLOWED_TRAVEL_MODES = [ RouteType[route_type] for route_type in data.get('travel_modes', _default_allowed_travel_modes).split(',') ]
     ALLOWED_HIDING_MODES = [ RouteType[route_type] for route_type in data.get('hiding_modes', _default_allowed_hiding_modes).split(',') ]
@@ -423,7 +425,7 @@ def jetlag_map():
             fill_opacity=0.2,
             color="black",
             weight=1,
-            radius=804.672 if is_valid_hiding_spot else 20,
+            radius=1609.344 * HIDING_RADIUS if is_valid_hiding_spot else 20,
         ).add_to(m)
 
     html = m.get_root().render()
