@@ -16,9 +16,30 @@
                 });
 
                 $('#map-form').submit(function () {
-                    document.getElementById('submit').disabled = true;
-                    document.getElementById('submit').innerText = 'Loading...';
-                    document.getElementById('map-form').append('(this may take a while!)');
+                    const submitButton = document.getElementById('submit');
+                    const loadingNote = document.getElementById('loading-note');
+                    const mapIframe = document.getElementById('map-iframe');
+
+                    submitButton.disabled = true;
+                    submitButton.innerText = 'Loading...';
+                    loadingNote.style.visibility = 'visible';
+                    mapIframe.contentDocument.body.replaceChildren();
+                    mapIframe.contentDocument.body.style.backgroundColor = 'rgba(255, 255, 255, 0)';
+
+                    const intervalId = setInterval(function () {
+                        if (mapIframe.contentDocument.body.childElementCount) {
+                            clearInterval(intervalId);
+                            submitButton.disabled = false;
+                            submitButton.innerText = 'Route me!';
+                            loadingNote.style.visibility = 'hidden';
+
+                            // set leaflet links to open in new tab
+                            for (const a of mapIframe.contentDocument.body.querySelectorAll('.leaflet-control-attribution a')) {
+                                a.rel = 'noreferrer noopener';
+                                a.target = '_blank';
+                            }
+                        }
+                    }, 1000);
                 });
             });
         </script>
@@ -76,11 +97,7 @@
     <body>
         <div id="content">
             <h1 class="shadow">DART Jet Lag: The Game - Hiding Location Finder</h1>
-            <div class="shadow">
-                Background by dart157!
-                <br />
-                Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors
-            </div>
+            <div class="shadow">Background by dart157!</div>
             <form class="shadow" id="map-form" action="{{ url_for('jetlag_map') }}" target="map-iframe" method="post">
                 <label for="start-time-picker">Choose a start time:</label>
                 <input type="datetime-local" id="start-time-picker" name="start_time" min="{{start_date}}" max="{{end_date}}" value="{{now_time}}" required />
@@ -102,6 +119,7 @@
                 <input type="number" class="input" id="walking-speed" name="walking_speed" value="1.06" min="0.01" step="0.01" required />
                 <br />
                 <button type="submit" id="submit">Route me!</button>
+                <span id="loading-note" style="visibility: hidden">(this takes a while, don't refresh!)</span>
             </form>
             <iframe name="map-iframe" id="map-iframe"></iframe>
         </div>
